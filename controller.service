@@ -1,0 +1,13 @@
+[Unit]
+Description=Input Controller
+
+[Service]
+ExecStart=/usr/bin/python3 -u controller.py
+WorkingDirectory=/home/pi/liftpi/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
