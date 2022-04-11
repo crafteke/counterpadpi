@@ -26,10 +26,6 @@ i2c = busio.I2C(SCL, SDA)
 # Create a Trellis object
 trellis = Trellis(i2c,[0x70,0x71])  # 0x70 when no I2C address is supplied
 
-COMMAND_CHANNEL="keypad"
-msg={}
-msg["channel"]=COMMAND_CHANNEL
-
 input_code=[False]*24
 #mapping pad to one-D array for code, 42 means unused pad (validation,hidden pads)
 PAD_MAPPING=[19,23,42,42,18,22,42,42,17,21,42,42,16,20,42,42,3,7,11,15,2,6,10,14,1,5,9,13,0,4,8,12]
@@ -73,7 +69,10 @@ def resetCode():
     input_code=[False]*24
 
 def formatCodeMessage():
-    return ' '.join(list(map(lambda x: '1' if x else '0', input_code)))
+    return ''.join(list(map(lambda x: '1' if x else '0', input_code)))
+
+def binaryToInt():
+    return int(formatCodeMessage(),2)
 
 pressed_buttons = None
 def initTrellis():
@@ -89,13 +88,14 @@ def monitorButtons():
     global pressed_buttons
     time.sleep(0.05)
     just_pressed, released = trellis.read_buttons()
+    msg={}
     for b in just_pressed:
         print("pressed:", b)
         if(b==VALIDATION_PAD):
             print("Sending code n reset")
             allLedsOff()
-            msg["id"]="push_pad_code"
-            msg["value"]=formatCodeMessage()
+            msg["controller_id"]="push_pad_code"
+            msg["value"]=binaryToInt()
             if sio.connected:
                 sio.emit('Command',msg)
             resetCode()
