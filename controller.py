@@ -27,7 +27,7 @@ i2c = busio.I2C(SCL, SDA)
 trellis = Trellis(i2c,[0x70,0x71])  # 0x70 when no I2C address is supplied
 
 input_code=[False]*24
-#mapping pad to one-D array for code, 42 means unused pad (validation,hidden pads)
+#mapping pad to one-D array for code, 42 means unused pad (validation,hidden pads, led for doors state)
 PAD_MAPPING=[19,23,42,42,18,22,42,42,17,21,42,42,16,20,42,42,3,7,11,15,2,6,10,14,1,5,9,13,0,4,8,12]
 
 VALIDATION_PAD=3
@@ -51,6 +51,12 @@ def allLedsOff():
     trellis.led.fill(False)
     trellis.led[CANCEL_PAD] = True
     trellis.led[VALIDATION_PAD] = True
+
+
+def switchPadLed(state):
+    for i,val in enumerate(PAD_MAPPING):
+        if val != 42:
+            trellis.led[i]=state
 
 # Turn on every LED, one at a time
 def animationStart():
@@ -93,12 +99,14 @@ def monitorButtons():
         print("pressed:", b)
         if(b==VALIDATION_PAD):
             print("Sending code n reset")
-            allLedsOff()
+            switchPadLed(True)
             msg["controller_id"]="push_pad_code"
             msg["value"]=binaryToInt()
             if sio.connected:
                 sio.emit('Command',msg)
             resetCode()
+            time.sleep(1)
+            switchPadLed(False)
 
             #send array with code and reset it
             #blink all pads and erase
@@ -106,9 +114,11 @@ def monitorButtons():
             trellis.led[CANCEL_PAD] = False
             trellis.led[VALIDATION_PAD] = False
             resetCode()
-            allLedsOn()
+            switchPadLed(True)
             time.sleep(1)
-            allLedsOff()
+            switchPadLed(False)
+            trellis.led[CANCEL_PAD] = True
+            trellis.led[VALIDATION_PAD] = True            
         else:
             index=PAD_MAPPING[b]
             if(index<len(input_code)):
