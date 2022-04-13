@@ -92,6 +92,7 @@ def monitorButtons():
         print("pressed:", b)
         if(b==VALIDATION_PAD):
             print("Sending code n reset")
+            trellis.led[VALIDATION_PAD] = False
             switchPadLed(True)
             msg["controller_id"]="push_pad_code"
             msg["value"]=binaryToInt()
@@ -115,8 +116,8 @@ def monitorButtons():
         else:
             index=PAD_MAPPING[b]
             if(index<len(input_code)):
-                trellis.led[b]=input_code[index]
                 input_code[index] = not input_code[index]
+                trellis.led[b]= input_code[index]    
 
     pressed_buttons.update(just_pressed)
     for b in released:
