@@ -1,6 +1,7 @@
 import time
 import busio
 from board import SCL, SDA
+import RPi.GPIO as GPIO
 from adafruit_trellis import Trellis
 from signal import signal, SIGINT
 from sys import exit
@@ -10,7 +11,10 @@ import time
 from timeloop import Timeloop #pip3 install timeloop
 from datetime import timedelta
 
+GPIO.setmode(GPIO.BCM)
+
 tl = Timeloop() # for counter scheduling
+HACKING_BOX_SIGNAL=22 # pin for hacking box
 
 countdown = counter.Counter()
 countdown.setup(4,5,6)
@@ -117,7 +121,7 @@ def monitorButtons():
             index=PAD_MAPPING[b]
             if(index<len(input_code)):
                 input_code[index] = not input_code[index]
-                trellis.led[b]= input_code[index]    
+                trellis.led[b]= input_code[index]
 
     pressed_buttons.update(just_pressed)
     for b in released:
@@ -168,6 +172,23 @@ def Command(data):
         print("Switch LED activate ", data['value'],".")
 
 
+check_ok=0
+#check if hacking box was up for 1 seconds
+@tl.job(interval=timedelta(seconds=0.1))
+def watch_hackingbox():
+    global check_ok
+    if(GPIO.input(HACKING_BOX_SIGNAL)==0):
+        check_ok+=1
+    else:
+        check_ok=0
+    if(check_ok==20):
+        check_ok=0
+        print("hacking box signal received.")
+        msg={}
+        msg["controller_id"]="hacking_box_ping"
+        msg["value"]=1
+        if sio.connected:
+            sio.emit('Command',msg)
 
 @tl.job(interval=timedelta(seconds=0.5))
 def final_countDown():
@@ -183,7 +204,17 @@ def final_countDown():
         # if(remaining_time%2==0):
         #     print( "Remaining time : ",remaining_time/2)
 
+def hackingbox_event(channel):
+    print("hacking box signal received.")
+    msg={}
+    msg["controller_id"]="hacking_box_ping"
+    msg["value"]=1
+    if sio.connected:
+        sio.emit('Command',msg)
+
 def main():
+    GPIO.setup(HACKING_BOX_SIGNAL,GPIO.IN,pull_up_down=GPIO.PUD_UP)
+    #GPIO.add_event_detect(HACKING_BOX_SIGNAL, GPIO.FALLING, callback=hackingbox_event, bouncetime=100)
     global enabled_pad
     print("Starting corridor controller...")
     try:
