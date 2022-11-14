@@ -1,29 +1,13 @@
-# README #
+# Documentation #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This code is supposed to work on the pad pi. Controlling both scanner and pad keys.
+### Dependencies ###
+To make C code works and control the countdown, you need dep
+`sudo apt-get install build-essential python-dev`
 
-### What is this repository for? ###
+```git clone https://github.com/WiringPi/WiringPi.git:cd WiringPi;./build```
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+```
+python3 setup.py build
 
-### How do I get set up? ###
-
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
-
-### Contribution guidelines ###
-
-* Writing tests
-* Code review
-* Other guidelines
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+```
