@@ -14,7 +14,9 @@ from datetime import timedelta
 GPIO.setmode(GPIO.BCM)
 
 tl = Timeloop() # for counter scheduling
-HACKING_BOX_SIGNAL=22 # pin for hacking box
+HACKING_BOX_SIGNAL_OUT=27 # pin for hacking box
+HACKING_BOX_SIGNAL_IN=22 # pin for hacking box
+
 
 countdown = counter.Counter()
 countdown.setup(4,5,6)
@@ -40,6 +42,7 @@ ROOMS_LIGHTS_PAD=[2,6,10,14]
 ACTIVE_LIGHT_PAD= 15
 
 enabled_pad=False
+hacking_box_activated=False
 # Turn on every LED
 def allLedsOn():
     print("Turning all LEDs on...")
@@ -136,7 +139,7 @@ def monitorButtons():
         #trellis.led[b] = True
 @sio.event
 def Command(data):
-    global running_countdown,remaining_time,enabled_pad
+    global running_countdown,remaining_time,enabled_pad,hacking_box_activated
     #print(data)
     if(data['controller_id']=='start_counter'):
         running_countdown=True
@@ -170,25 +173,44 @@ def Command(data):
             state=False
         trellis.led[ACTIVE_LIGHT_PAD] = state
         print("Switch LED activate ", data['value'],".")
+    if(data['controller_id']=='hacking_box_activate'):
+        if(data['value'] == '1'):
+            state=1
+            hacking_box_activated=True
+        else:
+            state=0
+            hacking_box_activated=False
+        print("Hacking box state:", data['value'],".")
+        if(hacking_box_activated):
+            GPIO.output(HACKING_BOX_SIGNAL_OUT, state)
+            #GPIO.add_event_detect(HACKING_BOX_SIGNAL, GPIO.RISING, callback=lambda c : print("box signal"), bouncetime=200)
+        else:
+            GPIO.output(HACKING_BOX_SIGNAL_OUT, state)
+
+
+
+
 
 
 check_ok=0
 #check if hacking box was up for 1 seconds
-@tl.job(interval=timedelta(seconds=0.1))
+@tl.job(interval=timedelta(seconds=0.05))
 def watch_hackingbox():
-    global check_ok
-    if(GPIO.input(HACKING_BOX_SIGNAL)==0):
-        check_ok+=1
-    else:
-        check_ok=0
-    if(check_ok==20):
-        check_ok=0
-        print("hacking box signal received.")
-        msg={}
-        msg["controller_id"]="hacking_box_ping"
-        msg["value"]=1
-        if sio.connected:
-            sio.emit('Command',msg)
+    global check_ok,hacking_box_activated
+    if(hacking_box_activated):
+        #print(GPIO.input(HACKING_BOX_SIGNAL))
+        if(GPIO.input(HACKING_BOX_SIGNAL_IN)==1):
+            check_ok+=1
+        else:
+            check_ok=0
+        if(check_ok==20):
+            check_ok=0
+            print("hacking box signal received.")
+            msg={}
+            msg["controller_id"]="hacking_box_validate"
+            msg["value"]=1
+            if sio.connected:
+                sio.emit('Command',msg)
 
 @tl.job(interval=timedelta(seconds=0.5))
 def final_countDown():
@@ -213,8 +235,6 @@ def hackingbox_event(channel):
         sio.emit('Command',msg)
 
 def main():
-    GPIO.setup(HACKING_BOX_SIGNAL,GPIO.IN,pull_up_down=GPIO.PUD_UP)
-    #GPIO.add_event_detect(HACKING_BOX_SIGNAL, GPIO.FALLING, callback=hackingbox_event, bouncetime=100)
     global enabled_pad
     print("Starting corridor controller...")
     try:
@@ -224,6 +244,10 @@ def main():
     if sio.connected:
         sio.emit('Register',"counterpadPi")
         print("Connected with SID ",sio.sid)
+        msg={}
+        msg["controller_id"]="what_time_is_it_big_ben"
+        msg["value"]=1
+        sio.emit('Command',msg)
     tl.start(block=False)
     #animationStart()
     print("Blinking counter.")
@@ -234,6 +258,9 @@ def main():
     time.sleep(0.5)
     allLedsOn()
     initTrellis()
+    GPIO.setup(HACKING_BOX_SIGNAL_IN,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
+    GPIO.setup(HACKING_BOX_SIGNAL_OUT,GPIO.OUT)
+    GPIO.output(HACKING_BOX_SIGNAL_OUT, 0)
     while True:
         try:
             if enabled_pad:
